@@ -33,4 +33,10 @@ async def get_embedding(text: str) -> list[float]:
         response.raise_for_status()
 
     data = response.json()
-    return data["data"][0]["embedding"]
+    vec = data["data"][0]["embedding"]
+    
+    # Strict safeguard: Truncate down to match database column dimension (e.g. 3072 -> 2048)
+    if len(vec) > settings.embed_dimension:
+        vec = vec[:settings.embed_dimension]
+        
+    return vec
