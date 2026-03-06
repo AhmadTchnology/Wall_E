@@ -7,3 +7,4 @@ __pycache__
 wall-e-ui.md
 PROJECT_ANALYSIS.md
 .vscode
+server/.env

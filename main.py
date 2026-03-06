@@ -31,6 +31,7 @@ from actions.code_helper      import code_helper
 from actions.dev_agent        import dev_agent
 from actions.web_search       import web_search as web_search_action
 from actions.computer_control import computer_control
+from actions.knowledge_base   import knowledge_base
 
 def get_base_dir():
     if getattr(sys, "frozen", False):
@@ -470,6 +471,29 @@ TOOL_DECLARATIONS = [
         },
         "required": ["origin", "destination", "date"]
     }
+},
+{
+    "name": "knowledge_base",
+    "description": (
+        "Searches the knowledge base for relevant information. "
+        "Use when the user asks about stored documents, domain-specific knowledge, "
+        "or any question that might be answered from the knowledge base. "
+        "Returns the most relevant results from the database."
+    ),
+    "parameters": {
+        "type": "OBJECT",
+        "properties": {
+            "query": {
+                "type": "STRING",
+                "description": "The search query in natural language"
+            },
+            "top_k": {
+                "type": "INTEGER",
+                "description": "Number of results to return (default: 5)"
+            }
+        },
+        "required": ["query"]
+    }
 }
 ]
 
@@ -673,6 +697,12 @@ class WallELive:
                     None, lambda: flight_finder(parameters=args, player=self.ui)
                 )
                 result = r or "Done."
+
+            elif name == "knowledge_base":
+                r = await loop.run_in_executor(
+                    None, lambda: knowledge_base(parameters=args, player=self.ui)
+                )
+                result = r or "No results found."
 
             else:
                 result = f"Unknown tool: {name}"
