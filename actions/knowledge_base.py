@@ -13,16 +13,11 @@ import httpx
 _BASE_DIR = Path(__file__).resolve().parent.parent
 _CONFIG_PATH = _BASE_DIR / "config" / "api_keys.json"
 
-_DEFAULT_SERVER_URL = "http://localhost:8000"
-
 
 def _get_server_url() -> str:
-    """Read the knowledge base server URL from config, fall back to default."""
-    try:
-        cfg = json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
-        return cfg.get("knowledge_base_url", _DEFAULT_SERVER_URL).rstrip("/")
-    except Exception:
-        return _DEFAULT_SERVER_URL
+    """Read the knowledge base server URL from api_keys.json."""
+    cfg = json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
+    return cfg["knowledge_base_url"].rstrip("/")
 
 
 def knowledge_base(*, parameters: dict, player=None) -> str:

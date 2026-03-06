@@ -3,17 +3,24 @@ from functools import lru_cache
 
 
 class Settings(BaseSettings):
-    database_url: str = "postgresql://postgres:postgres@localhost:5432/knowledge_base"
-    nvidia_api_key: str = ""
-    nvidia_embed_url: str = "https://integrate.api.nvidia.com/v1/embeddings"
-    embed_model: str = "nvidia/llama-3.2-nv-embedqa-1b-v2"
-    embed_dimension: int = 2048
+    # Database connection (separate fields)
+    db_host: str
+    db_port: int
+    db_name: str
+    db_user: str
+    db_password: str
+
+    # NVIDIA NIM
+    nvidia_api_key: str
+    nvidia_embed_url: str
+    embed_model: str
+    embed_dimension: int
 
     # Table configuration
-    table_name: str = "documents"
-    content_column: str = "text"
-    embedding_column: str = "embedding"
-    metadata_column: str = "metadata"
+    table_name: str
+    content_column: str
+    embedding_column: str
+    metadata_column: str
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 

@@ -1,8 +1,14 @@
 import json
 import asyncpg
+from pgvector.asyncpg import register_vector
 from config import get_settings
 
 _pool: asyncpg.Pool | None = None
+
+
+async def _init_connection(conn: asyncpg.Connection):
+    """Register pgvector type on each new connection in the pool."""
+    await register_vector(conn)
 
 
 async def init_pool() -> asyncpg.Pool:
@@ -10,12 +16,16 @@ async def init_pool() -> asyncpg.Pool:
     global _pool
     settings = get_settings()
     _pool = await asyncpg.create_pool(
-        dsn=settings.database_url,
+        host=settings.db_host,
+        port=settings.db_port,
+        database=settings.db_name,
+        user=settings.db_user,
+        password=settings.db_password,
         min_size=2,
         max_size=10,
+        init=_init_connection,
     )
 
-    # Register pgvector type so asyncpg can handle vector columns
     async with _pool.acquire() as conn:
         await conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
 
@@ -42,9 +52,8 @@ async def search_similar(
         raise RuntimeError("Database pool not initialized")
 
     settings = get_settings()
-
-    # Format vector as pgvector literal: '[0.1,0.2,...]'
-    vec_literal = "[" + ",".join(str(v) for v in embedding) + "]"
+    import numpy as np
+    query_vec = np.array(embedding, dtype=np.float32)
 
     query = f"""
         SELECT
@@ -57,7 +66,7 @@ async def search_similar(
     """
 
     async with _pool.acquire() as conn:
-        rows = await conn.fetch(query, vec_literal, top_k)
+        rows = await conn.fetch(query, query_vec, top_k)
 
     results = []
     for row in rows:

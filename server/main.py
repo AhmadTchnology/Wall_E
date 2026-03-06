@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
@@ -13,13 +14,18 @@ from schemas import (
     QueryResponse,
 )
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("wall-e-kb")
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage async resources: DB pool up on start, down on shutdown."""
     await db.init_pool()
+    logger.info("Database pool initialized")
     yield
     await db.close_pool()
+    logger.info("Database pool closed")
 
 
 app = FastAPI(
@@ -44,7 +50,6 @@ async def health():
     embed_ok = "ok"
 
     try:
-        # lightweight DB ping
         pool = db._pool
         if pool is None:
             db_ok = "not_connected"
@@ -68,19 +73,25 @@ async def query_knowledge_base(req: QueryRequest):
     2. Cosine-similarity search in pgvector
     3. Return ranked results
     """
+    logger.info(f"Query received: {req.query[:80]}")
+
     try:
         query_vector = await embeddings.get_embedding(req.query)
+        logger.info(f"Embedding OK — dim={len(query_vector)}")
     except Exception as exc:
+        logger.error(f"Embedding failed: {exc}", exc_info=True)
         raise HTTPException(
-            status_code=502,
+            status_code=500,
             detail=f"Embedding service error: {exc}",
         )
 
     try:
         rows = await db.search_similar(query_vector, top_k=req.top_k)
+        logger.info(f"DB search OK — {len(rows)} results")
     except Exception as exc:
+        logger.error(f"DB search failed: {exc}", exc_info=True)
         raise HTTPException(
-            status_code=502,
+            status_code=500,
             detail=f"Database search error: {exc}",
         )
 
