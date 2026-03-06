@@ -1,14 +1,8 @@
 import json
 import asyncpg
-from pgvector.asyncpg import register_vector
 from config import get_settings
 
 _pool: asyncpg.Pool | None = None
-
-
-async def _init_connection(conn: asyncpg.Connection):
-    """Register pgvector type on each new connection in the pool."""
-    await register_vector(conn)
 
 
 async def init_pool() -> asyncpg.Pool:
@@ -23,7 +17,6 @@ async def init_pool() -> asyncpg.Pool:
         password=settings.db_password,
         min_size=2,
         max_size=10,
-        init=_init_connection,
     )
 
     async with _pool.acquire() as conn:
@@ -45,15 +38,16 @@ async def search_similar(
     top_k: int = 5,
 ) -> list[dict]:
     """
-    Cosine-similarity search against the documents table.
-    Returns the top_k closest rows ordered by distance (ascending).
+    Cosine-similarity search against the vector table.
+    Passes the vector as a string literal cast to ::vector in SQL.
     """
     if _pool is None:
         raise RuntimeError("Database pool not initialized")
 
     settings = get_settings()
-    import numpy as np
-    query_vec = np.array(embedding, dtype=np.float32)
+
+    # Format as pgvector string literal: '[0.1,0.2,...]'
+    vec_literal = "[" + ",".join(str(v) for v in embedding) + "]"
 
     query = f"""
         SELECT
@@ -66,7 +60,7 @@ async def search_similar(
     """
 
     async with _pool.acquire() as conn:
-        rows = await conn.fetch(query, query_vec, top_k)
+        rows = await conn.fetch(query, vec_literal, top_k)
 
     results = []
     for row in rows:
